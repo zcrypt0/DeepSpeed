@@ -99,10 +99,12 @@ class InferenceEngine(Module):
                 "If you want to use cuda graph, please upgrade torch to at least v1.10"
 
         if self.checkpoint and not replace_with_kernel_inject:
+            print('load ckpt 1')
             self._load_checkpoint(self.checkpoint)
 
         # convert model to intended dtype
         if self.dtype:
+            print('convert to dtype')
             self._convert_to_dtype()
 
         if self.mpu:
@@ -110,14 +112,17 @@ class InferenceEngine(Module):
                 group=self.mpu.get_model_parallel_group())
             self.mp_group = mpu.get_model_parallel_group()
         elif self.mp_world_size > 1:
+            print('create model parallel group')
             self._create_model_parallel_group()
-
+        
+        print('moe')
         moe, _ = has_moe_layers(self.module)
 
         if moe and dist.get_world_size() > 1:
             self._create_ep_parallel_group(moe_experts)
 
         if self.injection_dict:
+            print('injection dict')
             for client_module, injection_policy in self.injection_dict.items():
                 self._apply_injection_policy(
                     client_module,
@@ -130,6 +135,7 @@ class InferenceEngine(Module):
                     training_mp_size,
                     self.checkpoint if replace_with_kernel_inject else None)
         elif replace_method == 'auto':
+            print('injection replace_method=auto')
             self._apply_injection_policy(
                 return_tuple=return_tuple,
                 replace_with_kernel_inject=replace_with_kernel_inject,
@@ -138,7 +144,8 @@ class InferenceEngine(Module):
                 moe_type=moe_type,
                 training_mp_size=training_mp_size,
                 checkpoint_dir=self.checkpoint if replace_with_kernel_inject else None)
-
+        
+        print('place model')
         device = torch.cuda.current_device()
         logger.info(f"Place model to device: {device}")
         self.module.to(device)
