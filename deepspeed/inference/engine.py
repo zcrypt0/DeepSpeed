@@ -321,8 +321,10 @@ class InferenceEngine(Module):
                                 moe_type='standard',
                                 training_mp_size=1,
                                 checkpoint_dir=None):
+        print("_apply_injection_policy load ckpt")
         checkpoint = SDLoaderFactory.get_sd_loader_json(
             checkpoint_dir) if checkpoint_dir is not None else None
+        print("replace transformer layer")
         replace_transformer_layer(client_module,
                                   self.module,
                                   triangular_masking=self.triangular_masking,
