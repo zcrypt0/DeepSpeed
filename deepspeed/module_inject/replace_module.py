@@ -357,6 +357,7 @@ def replace_transformer_layer(orig_layer_impl,
                         transformer_config,
                         mp_group=mp_group,
                     )
+            print("aaa2")
             new_module.config.scale_attention = scale_attention
 
             # we want the weights in [input, output] shape
@@ -431,7 +432,7 @@ def replace_transformer_layer(orig_layer_impl,
             #                   transformer_config.mp_size)
 
             print("aaa1")
-            
+
             if mlp_linear_layer:
                 if not moe and (_4hh_w.numel() == 0 or _4hh_w.is_meta):
                     if _4hh_w.is_meta or _4hh_w.ds_tensor.numel(

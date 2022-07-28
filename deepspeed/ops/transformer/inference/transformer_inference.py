@@ -755,8 +755,9 @@ class DeepSpeedTransformerInference(nn.Module):
                  merge_count=1,
                  mlp_extra_grouping=False,
                  qkv_merging=False):
+        print("bbb1")
         super(DeepSpeedTransformerInference, self).__init__()
-
+        print("bbb2")
         self.config = config
         self.config.layer_id = DeepSpeedTransformerInference.layer_id
         DeepSpeedTransformerInference.layer_id += 1
@@ -764,12 +765,16 @@ class DeepSpeedTransformerInference(nn.Module):
         data_type = torch.half if config.fp16 else torch.float
         global inference_cuda_module
         if inference_cuda_module is None:
+            print("bbb3")
             builder = op_builder.InferenceBuilder()
+            print("bbb4")
             inference_cuda_module = builder.load()
 
+        print("bbb5")
         if DeepSpeedTransformerInference.layer_id == 1:
             log_dist(f"DeepSpeed-Inference config: {self.config.__dict__}", [0])
 
+        print("bbb6")
         self.attention = DeepSpeedSelfAttention(self.config,
                                                 mp_group,
                                                 quantize_scales,
@@ -793,6 +798,8 @@ class DeepSpeedTransformerInference(nn.Module):
                         dtype=data_type,
                         device=device))
         self.layer_past = None
+
+        print("bbb7")
 
     def forward(self,
                 input,
