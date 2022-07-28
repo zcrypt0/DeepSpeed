@@ -179,6 +179,7 @@ def replace_transformer_layer(orig_layer_impl,
     Returns:
         Updated nn.module with replaced transformer layers
     """
+    print("make mp_replace")
     mp_replace = ReplaceWithTensorSlicing(mp_group=mp_group,
                                           mp_size=mp_size)  #, out_dim=0, in_dim=1)
 
@@ -188,6 +189,7 @@ def replace_transformer_layer(orig_layer_impl,
                             inference=False,
                             preln=True,
                             layer_id=0):
+        print("call replace_with_policy")
         preln = False if policy_cls is HFBertLayerPolicy else preln
         if policy_cls is HFBertLayerPolicy:
             policy = policy_cls(child, inference=inference, preln=preln)
@@ -600,6 +602,7 @@ def replace_transformer_layer(orig_layer_impl,
         return new_module
 
     def replace_wo_policy(module, all_reduce_linears):
+        print("call replace_wo_policy")
         def _replace(child, name, conv_linear_layer):
             mp_replace = ReplaceWithTensorSlicing(mp_group=mp_group)
             z_inference = (len(list(child.parameters())) > 0) and (list(
@@ -737,6 +740,7 @@ def replace_transformer_layer(orig_layer_impl,
         return _replace_module(module)
 
     def replace_fn(child, _policy, layer_id=0):
+        print("call replace_fn")
         if training:
             # copy relevant state from child -> new module
             new_module = replace_with_policy(child,
@@ -765,6 +769,7 @@ def replace_transformer_layer(orig_layer_impl,
                                      _replace_policy=policy)
 
     if checkpoint is not None:
+        print("load ckpt in replace")
         pbar = tqdm.tqdm(total=len(checkpoint),
                          desc=f"Loading {len(checkpoint)} checkpoint shards")
         for i in range(len(checkpoint)):
@@ -772,6 +777,8 @@ def replace_transformer_layer(orig_layer_impl,
                 pbar.update(1)
             sd = torch.load(checkpoint[i], map_location='cpu')
             load_model_with_checkpoint(replaced_module, sd, mp_replace)
+            
+     print("replace return")
     return replaced_module
 
 
@@ -785,6 +792,7 @@ def revert_transformer_layer(orig_layer_impl, model, config, preln=False):
     Returns:
         Updated nn.module with original bert-style transformer layers
     """
+    print("call  revert_transformer_layer")
     def replace_fn(child, _replace_policy, layer_id):
         #from turing.nvidia_modelingpreln import BertLayer
         orig_module = orig_layer_impl(config)
@@ -853,6 +861,7 @@ def replace_module(model, orig_class, replace_fn, _replace_policy):
     Returns:
         A modified ``model``.
     """
+    print("call replace_module")
     policy = {}
     if orig_class is not None:
         policy.update({orig_class: (replace_fn, _replace_policy)})
