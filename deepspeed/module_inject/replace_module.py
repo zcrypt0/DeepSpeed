@@ -189,7 +189,7 @@ def replace_transformer_layer(orig_layer_impl,
                             inference=False,
                             preln=True,
                             layer_id=0):
-        print("call replace_with_policy")
+        print("call replace_with_policy", f'policy_cls={policy_cls}', 'inference', inference, 'layer id', layer_id, 'quantize', quantize)
         preln = False if policy_cls is HFBertLayerPolicy else preln
         if policy_cls is HFBertLayerPolicy:
             policy = policy_cls(child, inference=inference, preln=preln)
@@ -204,9 +204,11 @@ def replace_transformer_layer(orig_layer_impl,
         from deepspeed.moe.layer import MoE
         moe = False
         if hasattr(child, 'mlp') and isinstance(child.mlp, MoE):
+            print("moe true")
             num_experts = child.mlp.num_experts
             moe = True
 
+        print("policy.attention()")
         attn_linear_layer, qkvw, qkvb, dense_w, dense_b, scale_attention, megatron_v2 = policy.attention()
         if not moe or moe_type == 'standard':
             mlp_linear_layer, _h4h_w, _h4h_b, _4hh_w, _4hh_b = policy.mlp()
@@ -214,6 +216,7 @@ def replace_transformer_layer(orig_layer_impl,
             mlp_linear_layer, _h4h_w, _h4h_b, _4hh_w, _4hh_b, \
                 _res_h4h_w, _res_h4h_b, _res_4hh_w, _res_4hh_b, _res_coef = policy.mlp(moe_type)
 
+        print("policy.layerNorm()")
         attn_nw, attn_nb, input_nw, input_nb = policy.layerNorm()
         if quantize:
             if policy_cls is not HFBertLayerPolicy:
@@ -249,6 +252,7 @@ def replace_transformer_layer(orig_layer_impl,
 
         if inference:
             if moe:
+                print("inference-moe-1")
                 ep_world_size = dist.get_world_size()
                 local_ep_size = 1 if num_experts < ep_world_size else num_experts // ep_world_size
 
@@ -269,6 +273,8 @@ def replace_transformer_layer(orig_layer_impl,
                 rotary_dim = config.rotary_dim if hasattr(config, 'rotary_dim') else child.attention.rotary_ndims \
                                             if hasattr(child, 'attention') and hasattr(child.attention,'rotary_ndims') else -1
                 bigscience_bloom = policy_cls is BLOOMLayerPolicy
+
+                print("inference bloom layer policy transformer_config")
                 transformer_config = transformer_inference.DeepSpeedInferenceConfig(
                     hidden_size=hidden_size,
                     heads=num_attention_heads,
@@ -315,6 +321,7 @@ def replace_transformer_layer(orig_layer_impl,
                         qkv_merging=(policy_cls is HFBertLayerPolicy))
 
                 else:
+                    print("quantize new_module = transformer_inference.DeepSpeedTransformerInference")
                     new_module = transformer_inference.DeepSpeedTransformerInference(
                         transformer_config,
                         mp_group=mp_group,
@@ -345,6 +352,7 @@ def replace_transformer_layer(orig_layer_impl,
                     )
 
                 else:
+                    print("non-quantize new_module = transformer_inference.DeepSpeedTransformerInference")
                     new_module = transformer_inference.DeepSpeedTransformerInference(
                         transformer_config,
                         mp_group=mp_group,
@@ -366,6 +374,7 @@ def replace_transformer_layer(orig_layer_impl,
             mpl_block = new_module.mlp
 
             if attn_linear_layer:
+                print("attn_linear_layer")
                 if qkvw.numel() == 0 or qkvw.is_meta:
                     if qkvw.is_meta or qkvw.ds_tensor.numel(
                     ) < attn_block.attn_qkvw.numel():
@@ -406,6 +415,7 @@ def replace_transformer_layer(orig_layer_impl,
                                      dim=-1).reshape(x.shape)
 
             if megatron_v2:
+                print("megatron v2")
                 new_module.config.rotate_half = True
                 new_module.config.rotate_every_two = False
 
@@ -420,6 +430,8 @@ def replace_transformer_layer(orig_layer_impl,
             #_4hh_b = _4hh_b * (transformer_config.training_mp_size /
             #                   transformer_config.mp_size)
 
+            print("aaa1")
+            
             if mlp_linear_layer:
                 if not moe and (_4hh_w.numel() == 0 or _4hh_w.is_meta):
                     if _4hh_w.is_meta or _4hh_w.ds_tensor.numel(
