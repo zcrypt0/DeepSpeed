@@ -778,7 +778,7 @@ def replace_transformer_layer(orig_layer_impl,
             sd = torch.load(checkpoint[i], map_location='cpu')
             load_model_with_checkpoint(replaced_module, sd, mp_replace)
             
-     print("replace return")
+    print("replace return")
     return replaced_module
 
 
